@@ -1057,33 +1057,44 @@ class SMTP {
       $endtime = time() + $this->Timelimit;
     }
     while(is_resource($this->smtp_conn) && !feof($this->smtp_conn)) {
-      $str = @fgets($this->smtp_conn, 515);
-      if($this->do_debug >= 4) {
-        $this->edebug("SMTP -> get_lines(): \$data was \"$data\"");
-        $this->edebug("SMTP -> get_lines(): \$str is \"$str\"");
-      }
-      $data .= $str;
-      if($this->do_debug >= 4) {
-        $this->edebug("SMTP -> get_lines(): \$data is \"$data\"");
-      }
-      // if 4th character is a space, we are done reading, break the loop
-      if(substr($str, 3, 1) == ' ') { break; }
-      // Timed-out? Log and break
-      $info = stream_get_meta_data($this->smtp_conn);
-      if ($info['timed_out']) {
-        if($this->do_debug >= 4) {
-          $this->edebug('SMTP -> get_lines(): timed-out (' . $this->Timeout . ' seconds)');
-        }
-        break;
-      }
-      // Now check if reads took too long
-      if ($endtime) {
-        if (time() > $endtime) {
+      $str = fgets($this->smtp_conn, 515);
+      
+      /*
+       * fgets reads false while socket is not ready.
+       * This may be specific to windows.
+       */ 
+      
+      if ($str !== false) {
+          
           if($this->do_debug >= 4) {
-            $this->edebug('SMTP -> get_lines(): timelimit reached (' . $this->Timelimit . ' seconds)');
+            $this->edebug("SMTP -> get_lines(): \$data was \"$data\"");
+            $this->edebug("SMTP -> get_lines(): \$str is \"$str\"");
           }
-          break;
-        }
+          $data .= $str;
+          if($this->do_debug >= 4) {
+            $this->edebug("SMTP -> get_lines(): \$data is \"$data\"");
+          }
+          // if 4th character is a space, we are done reading, break the loop
+          if(substr($str, 3, 1) == ' ') { break; }
+          // Timed-out? Log and break
+          $info = stream_get_meta_data($this->smtp_conn);
+          if ($info['timed_out']) {
+            if($this->do_debug >= 4) {
+              $this->edebug('SMTP -> get_lines(): timed-out (' . $this->Timeout . ' seconds)');
+            }
+            break;
+          }
+          // Now check if reads took too long
+          if ($endtime) {
+            if (time() > $endtime) {
+              if($this->do_debug >= 4) {
+                $this->edebug('SMTP -> get_lines(): timelimit reached (' . $this->Timelimit . ' seconds)');
+              }
+              break;
+            }
+          }
+      } else {
+          sleep(1);
       }
     }
     return $data;
